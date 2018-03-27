@@ -1,0 +1,147 @@
+Option Explicit
+
+Const STATE_SHEET = "State"
+Const BILLING = "Billing"
+Const SHIPPING = "Shipping"
+Const STATE_JP = "BillingStateJP"
+Const TXT_FNAME = "address.txt"
+Const BRACKETS_START_L1 = "["
+Const BRACKETS_END_L1 = "]"
+Const BRACKETS_START_L2 = "  {"
+Const BRACKETS_END_L2 = "  }"
+Const COMMA = ","
+
+Dim keyList As Variant
+Dim seqDict As Variant
+Dim recDict As Variant
+Dim stateDict As Variant
+
+Sub initList()
+    keyList = Array("Name", "BillingFirstName", "BillingLastName", _
+                    "BillingAddress1", "BillingAddress2", "BillingAddress3", _
+                    "BillingZipCode", "BillingPhone", "BillingCity", "BillingState", "BillingStateJP", _
+                    "ShippingFirstName", "ShippingLastName", _
+                    "ShippingAddress1", "ShippingAddress2", "ShippingAddress3", _
+                    "ShippingZipCode", "ShippingPhone", "ShippingCity", "ShippingState", "ShippingStateJP", _
+                    "CreditCardType", "CreditCardNumber", "CreditCardExpiryMonth", "CreditCardExpiryYear", "CreditCardCvv", "MaxCheckouts")
+End Sub
+
+Sub initSeqDict()
+    Set seqDict = CreateObject("Scripting.Dictionary")
+    seqDict.Add 1, "Name"
+    seqDict.Add 2, "BillingFirstName"
+    seqDict.Add 3, "BillingLastName"
+    seqDict.Add 4, "BillingZipCode"
+    seqDict.Add 5, "BillingStateJP"
+    seqDict.Add 6, "BillingCity"
+    seqDict.Add 7, "BillingAddress3"
+    seqDict.Add 8, "BillingAddress1"
+    seqDict.Add 9, "BillingPhone"
+    seqDict.Add 10, "CreditCardType"
+    seqDict.Add 11, "CreditCardNumber"
+    seqDict.Add 12, "CreditCardExpiryMonth"
+    seqDict.Add 13, "CreditCardExpiryYear"
+    seqDict.Add 14, "CreditCardCvv"
+End Sub
+
+Sub initRecDict()
+    Set recDict = CreateObject("Scripting.Dictionary")
+    recDict.Add "BillingAddress2", ""
+    recDict.Add "BillingState", ""
+    recDict.Add "ShippingAddress2", ""
+    recDict.Add "ShippingState", ""
+    recDict.Add "MaxCheckouts", "0"
+End Sub
+
+Sub initStateDict()
+    Dim startRow
+    Dim endRow
+    Dim keyCol
+    Dim valCol
+    Dim i
+    
+    startRow = 3
+    endRow = Worksheets(STATE_SHEET).Cells(Rows.Count, 1).End(xlUp).Row
+    keyCol = 1
+    valCol = 2
+    
+    Set stateDict = CreateObject("Scripting.Dictionary")
+
+    For i = startRow To endRow
+        stateDict.Add Worksheets(STATE_SHEET).Cells(i, keyCol).Value, Worksheets(STATE_SHEET).Cells(i, valCol).Value
+    Next i
+    
+End Sub
+
+
+Sub initDict()
+    initSeqDict
+    initRecDict
+    initStateDict
+End Sub
+
+Sub init()
+    initList
+    initDict
+End Sub
+
+Sub dumpJsonTxt()
+    Dim startRow
+    Dim startCol
+    Dim endRow
+    Dim endCol
+    Dim tabArry
+    Dim i, k, j
+    Dim key, val
+    Dim datFile As String
+    
+    init
+    
+    startRow = 4
+    startCol = 1
+    endRow = Cells(Rows.Count, 1).End(xlUp).Row
+    endCol = Cells(3, 1).End(xlToRight).Column
+    tabArry = Range(Cells(startRow, startCol), Cells(endRow, endCol))
+    datFile = ActiveWorkbook.Path & "\" & TXT_FNAME
+    Open datFile For Output As #1
+  
+    Print #1, BRACKETS_START_L1
+    For i = 1 To UBound(tabArry)
+        For k = 1 To UBound(tabArry, 2)
+        
+            key = seqDict.Item(k)
+            val = tabArry(i, k)
+            
+            If (key = STATE_JP) Then
+                val = stateDict(val)
+            End If
+            
+            recDict(key) = val
+            
+            If (InStr(key, BILLING) > 0) Then
+                key = Replace(key, BILLING, SHIPPING)
+                recDict(key) = val
+            End If
+        
+        Next k
+        
+        Print #1, BRACKETS_START_L2
+        
+        For k = 0 To UBound(keyList)
+            Print #1, "    """ & keyList(k) & """: """ & recDict(keyList(k)) & ""","
+        Next k
+        
+        If (i = UBound(tabArry)) Then
+            Print #1, BRACKETS_END_L2
+        Else
+            Print #1, BRACKETS_END_L2 & COMMA
+        End If
+    Next i
+    
+    Print #1, BRACKETS_END_L1
+    Close #1
+
+
+    MsgBox ("本Excelと同じフォルダにテキストファイルを出力しました。")
+
+End Sub
